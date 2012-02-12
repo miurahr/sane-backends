@@ -484,7 +484,7 @@ attach_one (const char *name)
         s->source = SOURCE_ADF_FRONT;
 	s->mode = MODE_LINEART;
         s->resolution_x = 300;
-        s->page_height = 11.5 * 1200;
+        s->page_height = 12.7 * 1200;
 
         s->threshold = 120;
         s->threshold_curve = 55;
@@ -1122,7 +1122,6 @@ sane_get_option_descriptor (SANE_Handle handle, SANE_Int option)
     else{
       opt->cap = SANE_CAP_INACTIVE;
     }
-    opt->cap = SANE_CAP_INACTIVE;
   }
 
   /* page height */
@@ -1801,8 +1800,8 @@ change_params(struct scanner *s)
           s->max_y = settings[i].max_y * 1200/s->resolution_y;
           s->min_y = settings[i].min_y * 1200/s->resolution_y;
 
-          s->page_width = s->max_x;
-          s->br_x = s->max_x;
+          s->page_width = s->max_x; //XXX
+          s->br_x = s->max_x; //XXX
           s->br_y = s->max_y;
 
           /*current dpi*/
@@ -1858,16 +1857,16 @@ change_params(struct scanner *s)
     s->cal_data.raw_data = NULL;
     s->cal_data.image = &s->sendcal;
 
-    s->block_xfr.plane_width = settings[i].head_width;
+    s->block_xfr.plane_width = settings[i].head_width; //XXX
     s->block_xfr.plane_stride = settings[i].req_width * 3;
     s->block_xfr.line_stride = settings[i].act_width * 3;
     s->block_xfr.raw_data = NULL;
     s->block_xfr.image = &s->block_img;
 
     /* set up the block image used during scanning operation */
-    width = s->block_xfr.plane_width * img_heads;
-    s->block_img.width_pix = width;
-    s->block_img.width_bytes = width * 3;
+    width = s->block_xfr.plane_width * img_heads; //XXX
+    s->block_img.width_pix = width; //XXX
+    s->block_img.width_bytes = width * 3; //XXX
     s->block_img.height = settings[i].block_height;
     s->block_img.pages = img_pages;
     s->block_img.buffer = NULL;
@@ -1903,7 +1902,7 @@ change_params(struct scanner *s)
     }
 
     /* fill in front settings */
-    s->front.width_pix = s->block_img.width_pix;
+    s->front.width_pix = s->block_img.width_pix; //XXX
     switch (s->mode) {
       case MODE_COLOR:
         s->front.width_bytes = s->front.width_pix*3;
@@ -2127,6 +2126,8 @@ sane_start (SANE_Handle handle)
             return ret;
         }
     }
+
+    //s->width = SANE_UNFIX (s->val[OPT_BR_X].w) - s->val[OPT_TL_X].w)
 
     /* first page requires buffers, etc */
     if(!s->started){
@@ -3514,7 +3515,7 @@ sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len, SANE_Int * len
   
     DBG (10, "sane_read: start si:%d len:%d max:%d\n",s->side,*len,max_len);
 
-    *len = 0;
+    *len = 0; //XXX len is for output buffer
 
     /* cancelled? */
     if(!s->started){
@@ -3576,7 +3577,7 @@ sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len, SANE_Int * len
             return ret;
         }
 
-        /* block filled, copy to front/back */
+        /* block filled, copy to front/back */ //XXX need to cut according to width/TL_X, BR_X
         if(s->block_xfr.done)
         {
             DBG (15, "sane_read: block buffer full\n");
@@ -3668,7 +3669,7 @@ sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len, SANE_Int * len
         DBG (10, "sane_read: copy rx:%d tx:%d tot:%d len:%d\n",
           page->bytes_scanned, page->bytes_read, page->bytes_total,*len);
     
-        memcpy(buf, page->image->buffer + page->bytes_read, *len);
+        memcpy(buf, page->image->buffer + page->bytes_read, *len); //XXX
         page->bytes_read += *len;
     
         /* sent it all, return eof on next read */
