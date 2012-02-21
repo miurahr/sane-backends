@@ -1800,8 +1800,8 @@ change_params(struct scanner *s)
           s->max_y = settings[i].max_y * 1200/s->resolution_y;
           s->min_y = settings[i].min_y * 1200/s->resolution_y;
 
-          s->page_width = s->max_x; //XXX
-          s->br_x = s->max_x; //XXX
+          s->page_width = s->max_x; /* XXX */
+          s->br_x = s->max_x;
           s->br_y = s->max_y;
 
           /*current dpi*/
@@ -1857,16 +1857,16 @@ change_params(struct scanner *s)
     s->cal_data.raw_data = NULL;
     s->cal_data.image = &s->sendcal;
 
-    s->block_xfr.plane_width = settings[i].head_width; //XXX
+    s->block_xfr.plane_width = settings[i].head_width;
     s->block_xfr.plane_stride = settings[i].req_width * 3;
     s->block_xfr.line_stride = settings[i].act_width * 3;
     s->block_xfr.raw_data = NULL;
     s->block_xfr.image = &s->block_img;
 
     /* set up the block image used during scanning operation */
-    width = s->block_xfr.plane_width * img_heads; //XXX
-    s->block_img.width_pix = width; //XXX
-    s->block_img.width_bytes = width * 3; //XXX
+    width = s->block_xfr.plane_width * img_heads;
+    s->block_img.width_pix = width;
+    s->block_img.width_bytes = width * 3;
     s->block_img.height = settings[i].block_height;
     s->block_img.pages = img_pages;
     s->block_img.buffer = NULL;
@@ -1902,7 +1902,8 @@ change_params(struct scanner *s)
     }
 
     /* fill in front settings */
-    s->front.width_pix = s->block_img.width_pix; //XXX
+    s->front.width_pix = s->page_width * img_heads; /* XXX width_bytes is set according to user configuration*/
+    /* s->front.width_pix = s->block_img.width_pix; */
     switch (s->mode) {
       case MODE_COLOR:
         s->front.width_bytes = s->front.width_pix*3;
@@ -2127,7 +2128,7 @@ sane_start (SANE_Handle handle)
         }
     }
 
-    //s->width = SANE_UNFIX (s->val[OPT_BR_X].w) - s->val[OPT_TL_X].w)
+    /* s->width = SANE_UNFIX (s->val[OPT_BR_X].w) - s->val[OPT_TL_X].w) */
 
     /* first page requires buffers, etc */
     if(!s->started){
@@ -3515,7 +3516,7 @@ sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len, SANE_Int * len
   
     DBG (10, "sane_read: start si:%d len:%d max:%d\n",s->side,*len,max_len);
 
-    *len = 0; //XXX len is for output buffer
+    *len = 0; /* XXX len is for output buffer */
 
     /* cancelled? */
     if(!s->started){
@@ -3577,7 +3578,8 @@ sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len, SANE_Int * len
             return ret;
         }
 
-        /* block filled, copy to front/back */ //XXX need to cut according to width/TL_X, BR_X
+        /* block filled, copy to front/back */ 
+	/* XXX need to cut according to width/TL_X, BR_X */
         if(s->block_xfr.done)
         {
             DBG (15, "sane_read: block buffer full\n");
@@ -3669,7 +3671,7 @@ sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len, SANE_Int * len
         DBG (10, "sane_read: copy rx:%d tx:%d tot:%d len:%d\n",
           page->bytes_scanned, page->bytes_read, page->bytes_total,*len);
     
-        memcpy(buf, page->image->buffer + page->bytes_read, *len); //XXX
+        memcpy(buf, page->image->buffer + page->bytes_read, *len); /* XXX */
         page->bytes_read += *len;
     
         /* sent it all, return eof on next read */
@@ -3786,7 +3788,8 @@ copy_block_to_page(struct scanner *s,int side)
     struct transfer * block = &s->block_xfr;
     struct page * page = &s->pages[side];
     int height = block->total_bytes / block->line_stride;
-    int width = block->image->width_pix;
+    int image_width = block->image->width_pix;
+    int page_width = page->image->width_pix;
     int block_page_stride = block->image->width_bytes * block->image->height;
     int page_y_offset = page->bytes_scanned / page->image->width_bytes;
     int line_reverse = (side == SIDE_BACK) || (s->model == MODEL_FI60F);
@@ -3797,14 +3800,17 @@ copy_block_to_page(struct scanner *s,int side)
     /* loop over all the lines in the block */
     for (i = 0; i < height; i++)
     {
-        unsigned char * p_in = block->image->buffer + (side * block_page_stride) + (i * block->image->width_bytes);
+        /* calcurate start position and end position */
+        int image_start = (image_width - page_width)/2;
+        unsigned char * p_in = block->image->buffer + (side * block_page_stride) + (i * block->image->width_bytes) + image_start * 3;
         unsigned char * p_out = page->image->buffer + ((i + page_y_offset) * page->image->width_bytes);
         unsigned char * lineStart = p_out;
         /* reverse order for back side or FI-60F scanner */
         if (line_reverse)
-            p_in += (width - 1) * 3;
+            p_in += (page_width - 1) * 3;
+
         /* convert all of the pixels in this row */
-        for (j = 0; j < width; j++)
+        for (j = 0; j < page_width; j++)
         {
             unsigned char r, g, b;
             if (s->model == MODEL_S300)
@@ -3823,18 +3829,20 @@ copy_block_to_page(struct scanner *s,int side)
             }
             else if (s->mode == MODE_LINEART)
             {
-                s->dt.buffer[j] = (r + g + b) / 3;
+                s->dt.buffer[j] = (r + g + b) / 3; /* stores dt temp image buffer and binalize afterword */
             }
             if (line_reverse)
                 p_in -= 3;
             else
                 p_in += 3;
         }
-        /* for MODE_LINEART, binarize the gray line stored in the temp image buffer */
+        /* for MODE_LINEART, binarize the gray line stored in the temp image buffer(dt) */
+        /* bacause dt.width = page_width, we pass page_width */
         if (s->mode == MODE_LINEART)
-            binarize_line(s, lineStart, width);
+            binarize_line(s, lineStart, page_width);
+
         /*add a periodic row because of non-square pixels*/
-        /*FIXME: only works with 225x200*/
+        /*FIXME: only works with 225x200, but it need only when selecting 225x200 */
         if (s->resolution_x > s->resolution_y && (i + page_y_offset) % 9 == 8)
         {
             memcpy(lineStart + page->image->width_bytes, lineStart, page->image->width_bytes);
