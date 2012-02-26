@@ -484,7 +484,7 @@ attach_one (const char *name)
         s->source = SOURCE_ADF_FRONT;
 	s->mode = MODE_LINEART;
         s->resolution_x = 300;
-        s->page_height = 12.7 * 1200;
+        s->page_height = 11.5 * 1200;
 
         s->threshold = 120;
         s->threshold_curve = 55;
@@ -1800,7 +1800,14 @@ change_params(struct scanner *s)
           s->max_y = settings[i].max_y * 1200/s->resolution_y;
           s->min_y = settings[i].min_y * 1200/s->resolution_y;
 
-          s->page_width = s->max_x; /* XXX */
+          if (s->page_width > s->max_x)
+          {
+             s->page_width = s->max_x;
+          }
+          else if (s->page_width < s->min_x)
+          {
+             s->page_width = s->min_x;
+          }
           s->br_x = s->max_x;
           s->br_y = s->max_y;
 
@@ -1902,8 +1909,7 @@ change_params(struct scanner *s)
     }
 
     /* fill in front settings */
-    s->front.width_pix = s->page_width * img_heads; /* XXX width_bytes is set according to user configuration*/
-    /* s->front.width_pix = s->block_img.width_pix; */
+    s->front.width_pix = s->page_width * img_heads * s->resolution_x / 1200 ; 
     switch (s->mode) {
       case MODE_COLOR:
         s->front.width_bytes = s->front.width_pix*3;
@@ -1913,6 +1919,8 @@ change_params(struct scanner *s)
         break;
       default: /*binary*/
         s->front.width_bytes = s->front.width_pix/8;
+        s->front.width_pix = s->front.width_bytes * 8;
+        s->page_width = s->front.width_pix * 1200 / (img_heads * s->resolution_x);
         break;
     }
     /*output image might be taller than scan due to interpolation*/
@@ -3516,7 +3524,7 @@ sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len, SANE_Int * len
   
     DBG (10, "sane_read: start si:%d len:%d max:%d\n",s->side,*len,max_len);
 
-    *len = 0; /* XXX len is for output buffer */
+    *len = 0;
 
     /* cancelled? */
     if(!s->started){
@@ -3671,7 +3679,7 @@ sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len, SANE_Int * len
         DBG (10, "sane_read: copy rx:%d tx:%d tot:%d len:%d\n",
           page->bytes_scanned, page->bytes_read, page->bytes_total,*len);
     
-        memcpy(buf, page->image->buffer + page->bytes_read, *len); /* XXX */
+        memcpy(buf, page->image->buffer + page->bytes_read, *len);
         page->bytes_read += *len;
     
         /* sent it all, return eof on next read */
@@ -3793,15 +3801,29 @@ copy_block_to_page(struct scanner *s,int side)
     int block_page_stride = block->image->width_bytes * block->image->height;
     int page_y_offset = page->bytes_scanned / page->image->width_bytes;
     int line_reverse = (side == SIDE_BACK) || (s->model == MODEL_FI60F);
+    int image_start = (image_width - page_width)/2;
+    int image_skip_bytes;
     int i,j;
 
     DBG (10, "copy_block_to_page: start\n");
 
+    /* calcurate start position and end position */
+    if (s->mode == MODE_COLOR)
+    {
+        image_skip_bytes = block->image->width_bytes - (image_start + page_width)*3;
+    }
+    else if (s->mode == MODE_GRAYSCALE)
+    {
+        image_skip_bytes = block->image->width_bytes - (image_start + page_width);
+    }
+    else if (s->mode == MODE_LINEART)
+    {
+        image_skip_bytes = block->image->width_bytes - (image_start + page_width)/8;
+    }
+
     /* loop over all the lines in the block */
     for (i = 0; i < height; i++)
     {
-        /* calcurate start position and end position */
-        int image_start = (image_width - page_width)/2;
         unsigned char * p_in = block->image->buffer + (side * block_page_stride) + (i * block->image->width_bytes) + image_start * 3;
         unsigned char * p_out = page->image->buffer + ((i + page_y_offset) * page->image->width_bytes);
         unsigned char * lineStart = p_out;
@@ -3836,6 +3858,12 @@ copy_block_to_page(struct scanner *s,int side)
             else
                 p_in += 3;
         }
+	/* skip non-transfer pixels in block image buffer */
+        if (line_reverse)
+            p_in -= image_skip_bytes;
+        else
+            p_in += image_skip_bytes;
+
         /* for MODE_LINEART, binarize the gray line stored in the temp image buffer(dt) */
         /* bacause dt.width = page_width, we pass page_width */
         if (s->mode == MODE_LINEART)
