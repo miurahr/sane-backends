@@ -209,6 +209,8 @@ static float white_factor[3] = {1.0, 0.93, 0.98};  /* Blue, Red, Green */
 #define STRING_GRAYSCALE SANE_VALUE_SCAN_MODE_GRAY
 #define STRING_COLOR SANE_VALUE_SCAN_MODE_COLOR
 
+#define ADF_HEIGHT_PADDING 600
+
 /*
  * used by attach* and sane_get_devices
  * a ptr to a null term array of ptrs to SANE_Device structs
@@ -1808,7 +1810,7 @@ change_params(struct scanner *s)
           {
              s->page_width = s->min_x;
           }
-          s->br_x = s->max_x;
+          s->br_x = (s->max_x + s->page_width)/2;
           s->br_y = s->max_y;
 
           /*current dpi*/
@@ -1905,7 +1907,7 @@ change_params(struct scanner *s)
     else
     {
       /* adf with specified paper size requires padding (~1/2in) */
-      s->fullscan.height = (s->page_height+600) * s->resolution_y / 1200;
+      s->fullscan.height = (s->page_height+ADF_HEIGHT_PADDING) * s->resolution_y / 1200;
     }
 
     /* fill in front settings */
@@ -1924,7 +1926,9 @@ change_params(struct scanner *s)
         break;
     }
     /*output image might be taller than scan due to interpolation*/
-    s->front.height = s->fullscan.height * s->resolution_x / s->resolution_y;
+    s->front.height = (s->page_height * s->resolution_x) / 1200;
+    /*  that is (s->page_height * s->resolution_y / 1200) * (s->resolution_x / s->resolution_y) */
+    DBG (5, "change_params: page_height:%d, front_height:%d\n", s->page_height, s->front.height);
     s->front.pages = 1;
     s->front.buffer = NULL;
 
@@ -2135,8 +2139,6 @@ sane_start (SANE_Handle handle)
             return ret;
         }
     }
-
-    /* s->width = SANE_UNFIX (s->val[OPT_BR_X].w) - s->val[OPT_TL_X].w) */
 
     /* first page requires buffers, etc */
     if(!s->started){
@@ -3587,7 +3589,6 @@ sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len, SANE_Int * len
         }
 
         /* block filled, copy to front/back */ 
-	/* XXX need to cut according to width/TL_X, BR_X */
         if(s->block_xfr.done)
         {
             DBG (15, "sane_read: block buffer full\n");
@@ -3630,7 +3631,6 @@ sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len, SANE_Int * len
                     DBG (5, "sane_read: cant copy to front/back\n");
                     return ret;
                 }
-
                 s->fullscan.rx_bytes += s->block_xfr.rx_bytes;
 
                 /* autodetect mode, check for change length */
@@ -3803,7 +3803,7 @@ copy_block_to_page(struct scanner *s,int side)
     int line_reverse = (side == SIDE_BACK) || (s->model == MODEL_FI60F);
     int image_start = (image_width - page_width)/2;
     int image_skip_bytes;
-    int i,j;
+    int i,j,k;
 
     DBG (10, "copy_block_to_page: start\n");
 
@@ -3821,10 +3821,26 @@ copy_block_to_page(struct scanner *s,int side)
         image_skip_bytes = block->image->width_bytes - (image_start + page_width)/8;
     }
 
-    /* loop over all the lines in the block */
-    for (i = 0; i < height; i++)
+    k = 0;
+    int padding_skip_bytes = block->line_stride * (ADF_HEIGHT_PADDING * s->resolution_y /1200);
+
+    if (s->fullscan.rx_bytes + s->block_xfr.rx_bytes < padding_skip_bytes)
     {
-        unsigned char * p_in = block->image->buffer + (side * block_page_stride) + (i * block->image->width_bytes) + image_start * 3;
+        return ret;
+    }
+    else if (s->fullscan.rx_bytes < padding_skip_bytes)
+    {
+        k = (padding_skip_bytes - s->fullscan.rx_bytes) / block->image->width_bytes;
+    }
+    else
+    {
+        k = 0;
+    }
+
+    /* loop over all the lines in the block */
+    for (i = 0; i < height-k; i++)
+    {
+        unsigned char * p_in = block->image->buffer + (side * block_page_stride) + ((i+k) * block->image->width_bytes) + image_start * 3;
         unsigned char * p_out = page->image->buffer + ((i + page_y_offset) * page->image->width_bytes);
         unsigned char * lineStart = p_out;
         /* reverse order for back side or FI-60F scanner */
@@ -3880,7 +3896,7 @@ copy_block_to_page(struct scanner *s,int side)
     }
 
     /* update the page counter of bytes scanned */
-    page->bytes_scanned += page->image->width_bytes * height;
+    page->bytes_scanned += page->image->width_bytes * (height - k);
 
     DBG (10, "copy_block_to_page: finish\n");
 
