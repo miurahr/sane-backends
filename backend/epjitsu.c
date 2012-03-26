@@ -1906,8 +1906,8 @@ change_params(struct scanner *s)
     }
     else
     {
-      /* adf with specified paper size requires padding (~1/2in) */
-      s->fullscan.height = (s->page_height+ADF_HEIGHT_PADDING) * s->resolution_y / 1200;
+      /* adf with specified paper size requires padding in both top and bottom  (~1/2in) */
+      s->fullscan.height = (s->page_height + ADF_HEIGHT_PADDING * 2) * s->resolution_y / 1200;
     }
 
     /* fill in front settings */
@@ -1928,7 +1928,6 @@ change_params(struct scanner *s)
     /*output image might be taller than scan due to interpolation*/
     s->front.height = (s->page_height * s->resolution_x) / 1200;
     /*  that is (s->page_height * s->resolution_y / 1200) * (s->resolution_x / s->resolution_y) */
-    DBG (5, "change_params: page_height:%d, front_height:%d\n", s->page_height, s->front.height);
     s->front.pages = 1;
     s->front.buffer = NULL;
 
@@ -1952,6 +1951,7 @@ change_params(struct scanner *s)
     s->pages[SIDE_FRONT].done = 0;
     s->pages[SIDE_BACK].done = 0;
 
+    DBG (5, "change_params: fullscan_height:%d, page_height:%d, front_height:%d\n", s->fullscan.height, s->page_height, s->front.height);
     DBG (10, "change_params: finish\n");
   
     return ret;
@@ -3803,7 +3803,7 @@ copy_block_to_page(struct scanner *s,int side)
     int line_reverse = (side == SIDE_BACK) || (s->model == MODEL_FI60F);
     int image_start = (image_width - page_width)/2;
     int image_skip_bytes;
-    int i,j,k;
+    int i,j,k=0;
 
     DBG (10, "copy_block_to_page: start\n");
 
@@ -3821,20 +3821,22 @@ copy_block_to_page(struct scanner *s,int side)
         image_skip_bytes = block->image->width_bytes - (image_start + page_width)/8;
     }
 
-    k = 0;
-    int padding_skip_bytes = block->line_stride * (ADF_HEIGHT_PADDING * s->resolution_y /1200);
-
-    if (s->fullscan.rx_bytes + s->block_xfr.rx_bytes < padding_skip_bytes)
+    if(s->source != SOURCE_FLATBED && s->page_height)
     {
-        return ret;
-    }
-    else if (s->fullscan.rx_bytes < padding_skip_bytes)
-    {
-        k = (padding_skip_bytes - s->fullscan.rx_bytes) / block->image->width_bytes;
-    }
-    else
-    {
-        k = 0;
+        int padding_skip_bytes = block->line_stride * (ADF_HEIGHT_PADDING * s->resolution_y /1200);
+        if (s->fullscan.rx_bytes + s->block_xfr.rx_bytes < padding_skip_bytes)
+        {
+            /* skip padding */
+            return ret;
+        }
+        else if (s->fullscan.rx_bytes < padding_skip_bytes)
+        {
+            k = (padding_skip_bytes - s->fullscan.rx_bytes) / block->image->width_bytes;
+        }
+        else
+        {
+            k = 0;
+        }
     }
 
     /* loop over all the lines in the block */
