@@ -3663,7 +3663,7 @@ sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len, SANE_Int * len
             update_transfer_totals(&s->block_xfr);
 
             /* scan now finished */
-            if(s->fullscan.rx_bytes == s->fullscan.total_bytes){
+            if(s->fullscan.rx_bytes >= s->fullscan.total_bytes){
                 DBG (15, "sane_read: last block\n");
                 s->fullscan.done = 1;
             }
@@ -3803,7 +3803,7 @@ copy_block_to_page(struct scanner *s,int side)
     int line_reverse = (side == SIDE_BACK) || (s->model == MODEL_FI60F);
     int image_start = (image_width - page_width)/2;
     int image_skip_bytes;
-    int i,j,k=0;
+    int i,j,k=0,l=0;
 
     DBG (10, "copy_block_to_page: start\n");
 
@@ -3832,15 +3832,21 @@ copy_block_to_page(struct scanner *s,int side)
         else if (s->fullscan.rx_bytes < padding_skip_bytes)
         {
             k = (padding_skip_bytes - s->fullscan.rx_bytes) / block->image->width_bytes;
+            l = 0;
+        }
+        else if (s->fullscan.rx_bytes + s->block_xfr.rx_bytes > s->fullscan.total_bytes)
+        {
+            k = 0;
+            l = (s->fullscan.rx_bytes + s->block_xfr.rx_bytes - s->fullscan.total_bytes) / block->image->width_bytes;
         }
         else
         {
-            k = 0;
+            k = 0; l = 0;
         }
     }
 
     /* loop over all the lines in the block */
-    for (i = 0; i < height-k; i++)
+    for (i = 0; i < height-k-l; i++)
     {
         unsigned char * p_in = block->image->buffer + (side * block_page_stride) + ((i+k) * block->image->width_bytes) + image_start * 3;
         unsigned char * p_out = page->image->buffer + ((i + page_y_offset) * page->image->width_bytes);
@@ -3898,7 +3904,7 @@ copy_block_to_page(struct scanner *s,int side)
     }
 
     /* update the page counter of bytes scanned */
-    page->bytes_scanned += page->image->width_bytes * (height - k);
+    page->bytes_scanned += page->image->width_bytes * (height - k - l);
 
     DBG (10, "copy_block_to_page: finish\n");
 
