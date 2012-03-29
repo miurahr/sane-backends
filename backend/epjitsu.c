@@ -1058,7 +1058,6 @@ sane_get_option_descriptor (SANE_Handle handle, SANE_Int option)
     opt->constraint_type = SANE_CONSTRAINT_RANGE;
     opt->constraint.range = &(s->tl_y_range);
     opt->cap = SANE_CAP_SOFT_SELECT | SANE_CAP_SOFT_DETECT;
-    opt->cap = SANE_CAP_INACTIVE;
   }
 
   /* bottom-right x */
@@ -1907,7 +1906,7 @@ change_params(struct scanner *s)
     else
     {
       /* adf with specified paper size requires padding in both top and bottom  (~1/2in) */
-      s->fullscan.height = (s->page_height + ADF_HEIGHT_PADDING * 2) * s->resolution_y / 1200;
+      s->fullscan.height = (s->page_height + s->tl_y + ADF_HEIGHT_PADDING * 2) * s->resolution_y / 1200;
     }
 
     /* fill in front settings */
@@ -3810,8 +3809,8 @@ copy_block_to_page(struct scanner *s,int side)
     int line_reverse = (side == SIDE_BACK) || (s->model == MODEL_FI60F);
     int image_start = (image_width - page_width)/2;
     int image_skip_bytes;
-    int padding_skip_height = ADF_HEIGHT_PADDING * s->resolution_y / 1200;
-    int padding_skip_bytes = block->line_stride * padding_skip_height;
+    int top_skip_height = (s->tl_y + ADF_HEIGHT_PADDING) * s->resolution_y / 1200;
+    int top_skip_bytes = block->line_stride * top_skip_height;
     int i,j,k=0,l=0;
 
     DBG (10, "copy_block_to_page: start\n");
@@ -3832,14 +3831,14 @@ copy_block_to_page(struct scanner *s,int side)
 
     if(s->source != SOURCE_FLATBED && s->page_height)
     {
-        if (s->fullscan.rx_bytes + s->block_xfr.rx_bytes < padding_skip_bytes)
+        if (s->fullscan.rx_bytes + s->block_xfr.rx_bytes < top_skip_bytes)
         {
             /* skip padding */
             return ret;
         }
-        else if (s->fullscan.rx_bytes < padding_skip_bytes)
+        else if (s->fullscan.rx_bytes < top_skip_bytes)
         {
-            k = padding_skip_height - s->fullscan.rx_bytes / block->line_stride;
+            k = top_skip_height - s->fullscan.rx_bytes / block->line_stride;
             l = 0;
         }
         else if (s->fullscan.rx_bytes + s->block_xfr.rx_bytes > page_height * block->line_stride)
