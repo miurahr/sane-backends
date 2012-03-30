@@ -1905,8 +1905,8 @@ change_params(struct scanner *s)
     }
     else
     {
-      /* adf with specified paper size requires padding in both top and bottom  (~1/2in) */
-      s->fullscan.height = (s->page_height + s->tl_y + ADF_HEIGHT_PADDING * 2) * s->resolution_y / 1200;
+      /* adf with specified paper size requires padding on top (~1/2in) */
+      s->fullscan.height = (s->page_height + s->tl_y + ADF_HEIGHT_PADDING) * s->resolution_y / 1200;
     }
 
     /* fill in front settings */
@@ -3536,7 +3536,7 @@ sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len, SANE_Int * len
     page = &s->pages[s->side];
 
     /* have sent all of current buffer */
-    if(page->done){
+    if(s->fullscan.done && page->done){
         DBG (10, "sane_read: returning eof\n");
         return SANE_STATUS_EOF;
     } 
@@ -3673,12 +3673,6 @@ sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len, SANE_Int * len
     if(*len > max_len){
         *len = max_len;
     }
-    /* assertion */
-    if (*len + page->bytes_read > page->bytes_total) {
-        DBG(5, "sane_read: overrun on page copy rx:%d tx:%d tot:%d len:%d\n"
-          page->bytes_scanned, page->bytes_read, page->bytes_total,*len);
-        return SANE_STATUS_INVAL;
-    }
 
     if(*len){
         DBG (10, "sane_read: copy rx:%d tx:%d tot:%d len:%d\n",
@@ -3688,7 +3682,7 @@ sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len, SANE_Int * len
         page->bytes_read += *len;
     
         /* sent it all, return eof on next read */
-        if(s->fullscan.done && page->bytes_read == page->bytes_scanned){
+        if(page->bytes_read == page->bytes_scanned){
             DBG (10, "sane_read: side done\n");
             page->done = 1;
         }
@@ -3833,7 +3827,7 @@ copy_block_to_page(struct scanner *s,int side)
     {
         if (s->fullscan.rx_bytes + s->block_xfr.rx_bytes < top_skip_bytes)
         {
-            /* skip padding */
+            /* skip padding block */
             return ret;
         }
         else if (s->fullscan.rx_bytes < top_skip_bytes)
@@ -3841,10 +3835,15 @@ copy_block_to_page(struct scanner *s,int side)
             k = top_skip_height - s->fullscan.rx_bytes / block->line_stride;
             l = 0;
         }
-        else if (s->fullscan.rx_bytes + s->block_xfr.rx_bytes > page_height * block->line_stride)
+        else if (s->fullscan.rx_bytes > top_skip_bytes + page_height * block->line_stride)
+        {
+            /* don't come here */
+            return ret;
+        }
+        else if (s->fullscan.rx_bytes + s->block_xfr.rx_bytes > top_skip_bytes + page_height * block->line_stride)
         {
             k = 0;
-            l = (s->fullscan.rx_bytes + s->block_xfr.rx_bytes) / block->line_stride - page_height;
+            l = (s->fullscan.rx_bytes + s->block_xfr.rx_bytes) / block->line_stride - page_height - top_skip_height;
         }
         else
         {
