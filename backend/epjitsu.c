@@ -3803,8 +3803,7 @@ copy_block_to_page(struct scanner *s,int side)
     int line_reverse = (side == SIDE_BACK) || (s->model == MODEL_FI60F);
     int image_start = (image_width - page_width)/2;
     int image_skip_bytes;
-    int top_skip_height = (s->tl_y + ADF_HEIGHT_PADDING) * s->resolution_y / 1200;
-    int top_skip_bytes = block->line_stride * top_skip_height;
+    int top_skip_height, top_skip_bytes;
     int i,j,k=0,l=0;
 
     DBG (10, "copy_block_to_page: start\n");
@@ -3822,33 +3821,57 @@ copy_block_to_page(struct scanner *s,int side)
     {
         image_skip_bytes = block->image->width_bytes - (image_start + page_width)/8;
     }
-
-    if(s->source != SOURCE_FLATBED && s->page_height)
+    
+    if (side == SIDE_FRONT) /* only front need to remove padding header */
     {
-        if (s->fullscan.rx_bytes + s->block_xfr.rx_bytes < top_skip_bytes)
+        top_skip_height = (s->tl_y + ADF_HEIGHT_PADDING) * s->resolution_y / 1200;
+        top_skip_bytes = block->line_stride * top_skip_height;
+    }
+    else
+    {
+        top_skip_height = s->tl_y * s->resolution_y / 1200;
+        top_skip_bytes = block->line_stride * top_skip_height;
+    }
+
+
+    if (s->fullscan.rx_bytes + s->block_xfr.rx_bytes < top_skip_bytes)
+    {
+        /* skip padding block */
+        return ret;
+    }
+    else if (s->fullscan.rx_bytes < top_skip_bytes)
+    {
+        k = top_skip_height - s->fullscan.rx_bytes / block->line_stride;
+        l = 0;
+    }
+
+    /* autodetect mode */
+    if( s->source != SOURCE_FLATBED && !s->page_height )
+    {
+        /* FIXME: do nothing now */
+        k = 0; l = 0;
+    }
+    else if (s->page_height)
+    {
+        if (s->fullscan.rx_bytes > top_skip_bytes + page_height * block->line_stride)
         {
-            /* skip padding block */
             return ret;
         }
-        else if (s->fullscan.rx_bytes < top_skip_bytes)
+        else if (s->fullscan.rx_bytes + s->block_xfr.rx_bytes 
+                 > top_skip_bytes + page_height * block->line_stride)
         {
-            k = top_skip_height - s->fullscan.rx_bytes / block->line_stride;
-            l = 0;
+             k = 0;
+             l = (s->fullscan.rx_bytes + s->block_xfr.rx_bytes) / block->line_stride
+                 - page_height - top_skip_height;
         }
-        else if (s->fullscan.rx_bytes > top_skip_bytes + page_height * block->line_stride)
+        else /* normal */
         {
-            /* don't come here */
-            return ret;
+             k = 0; l = 0;
         }
-        else if (s->fullscan.rx_bytes + s->block_xfr.rx_bytes > top_skip_bytes + page_height * block->line_stride)
-        {
-            k = 0;
-            l = (s->fullscan.rx_bytes + s->block_xfr.rx_bytes) / block->line_stride - page_height - top_skip_height;
-        }
-        else
-        {
-            k = 0; l = 0;
-        }
+    }
+    else /* FLATBED */
+    {
+         k = 0; l = 0;
     }
 
     /* loop over all the lines in the block */
