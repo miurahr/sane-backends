@@ -1950,7 +1950,6 @@ change_params(struct scanner *s)
     s->pages[SIDE_FRONT].done = 0;
     s->pages[SIDE_BACK].done = 0;
 
-    DBG (5, "change_params: fullscan_height:%d, page_height:%d, front_height:%d\n", s->fullscan.height, s->page_height, s->front.height);
     DBG (10, "change_params: finish\n");
   
     return ret;
