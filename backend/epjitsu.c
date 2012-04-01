@@ -1802,15 +1802,22 @@ change_params(struct scanner *s)
           s->min_y = settings[i].min_y * 1200/s->resolution_y;
 
           if (s->page_width > s->max_x)
-          {
              s->page_width = s->max_x;
-          }
           else if (s->page_width < s->min_x)
-          {
              s->page_width = s->min_x;
-          }
+
+          s->tl_x = (s->max_x - s->page_width)/2;
+          if (s->tl_y > s->max_y - s->min_y)
+             s->tl_y = s->max_y - s->min_y;
+
+          if (s->tl_y + s->page_height > s->max_y)
+             s->page_height = s->max_y - s->tl_y;
+
+          if (s->page_height < s->min_y)
+             s->page_height = s->min_y;
+
           s->br_x = (s->max_x + s->page_width)/2;
-          s->br_y = s->max_y;
+          s->br_y = s->tl_y + s->page_height;
 
           /*current dpi*/
           s->setWindowCoarseCal = settings[i].sw_coarsecal;
