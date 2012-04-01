@@ -1598,7 +1598,7 @@ sane_control_option (SANE_Handle handle, SANE_Int option,
           s->tl_y = FIXED_MM_TO_SCANNER_UNIT(val_c);
 
           *info |= SANE_INFO_RELOAD_PARAMS | SANE_INFO_RELOAD_OPTIONS;
-          return SANE_STATUS_GOOD;
+          return change_params(s);
 
         case OPT_BR_X:
           if (s->br_x == FIXED_MM_TO_SCANNER_UNIT(val_c))
