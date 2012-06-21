@@ -1796,10 +1796,10 @@ change_params(struct scanner *s)
           s->resolution_y = settings[i].y_res;
 
           /*1200 dpi*/
-          s->max_x = settings[i].max_x * 1200/s->resolution_x;
-          s->min_x = settings[i].min_x * 1200/s->resolution_x;
-          s->max_y = settings[i].max_y * 1200/s->resolution_y;
-          s->min_y = settings[i].min_y * 1200/s->resolution_y;
+          s->max_x = PIX_TO_SCANNER_UNIT( settings[i].max_x, s->resolution_x );
+          s->min_x = PIX_TO_SCANNER_UNIT( settings[i].min_x, s->resolution_x );
+          s->max_y = PIX_TO_SCANNER_UNIT( settings[i].max_y, s->resolution_y );
+          s->min_y = PIX_TO_SCANNER_UNIT( settings[i].min_y, s->resolution_y );
 
           if (s->page_width > s->max_x)
              s->page_width = s->max_x;
@@ -1908,16 +1908,16 @@ change_params(struct scanner *s)
     if(s->source == SOURCE_FLATBED || !s->page_height)
     {
       /* flatbed and adf in autodetect always ask for all*/
-      s->fullscan.height = s->max_y * s->resolution_y / 1200;
+      s->fullscan.height = SCANNER_UNIT_TO_PIX(s->max_y, s->resolution_y);
     }
     else
     {
       /* adf with specified paper size requires padding on top (~1/2in) */
-      s->fullscan.height = (s->page_height + s->tl_y + ADF_HEIGHT_PADDING) * s->resolution_y / 1200;
+      s->fullscan.height = SCANNER_UNIT_TO_PIX((s->page_height + s->tl_y + ADF_HEIGHT_PADDING), s->resolution_y);
     }
 
     /* fill in front settings */
-    s->front.width_pix = s->page_width * img_heads * s->resolution_x / 1200 ; 
+    s->front.width_pix = SCANNER_UNIT_TO_PIX(s->page_width, s->resolution_x * img_heads); 
     switch (s->mode) {
       case MODE_COLOR:
         s->front.width_bytes = s->front.width_pix*3;
@@ -1928,12 +1928,13 @@ change_params(struct scanner *s)
       default: /*binary*/
         s->front.width_bytes = s->front.width_pix/8;
         s->front.width_pix = s->front.width_bytes * 8;
-        s->page_width = s->front.width_pix * 1200 / (img_heads * s->resolution_x);
+        s->page_width = PIX_TO_SCANNER_UNIT(s->front.width_pix, (img_heads * s->resolution_x));
         break;
     }
     /*output image might be taller than scan due to interpolation*/
-    s->front.height = (s->page_height * s->resolution_x) / 1200;
-    /*  that is (s->page_height * s->resolution_y / 1200) * (s->resolution_x / s->resolution_y) */
+    s->front.height = SCANNER_UNIT_TO_PIX(s->page_height, s->resolution_x);
+    /*  SCANNER_UNIT_TO_PIX(s->page_height, s->resolution_y) * (s->resolution_x / s->resolution_y) */
+
     s->front.pages = 1;
     s->front.buffer = NULL;
 
@@ -3831,11 +3832,11 @@ copy_block_to_page(struct scanner *s,int side)
     /* ADF front need to remove padding header */
     if (s->source != SOURCE_FLATBED && side == SIDE_FRONT) 
     {
-        top_skip_height = (s->tl_y + ADF_HEIGHT_PADDING) * s->resolution_y / 1200;
+        top_skip_height = SCANNER_UNIT_TO_PIX(s->tl_y+ADF_HEIGHT_PADDING, s->resolution_y);
     }
     else
     {
-        top_skip_height = s->tl_y * s->resolution_y / 1200;
+        top_skip_height = SCANNER_UNIT_TO_PIX(s->tl_y, s->resolution_y);
     }
     top_skip_bytes = block->line_stride * top_skip_height;
 
