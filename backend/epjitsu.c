@@ -3542,7 +3542,7 @@ sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len, SANE_Int * len
     page = &s->pages[s->side];
 
     /* have sent all of current buffer */
-    if(s->fullscan.done && page->done){
+    if(page->done){
         DBG (10, "sane_read: returning eof\n");
         return SANE_STATUS_EOF;
     } 
@@ -3688,7 +3688,7 @@ sane_read (SANE_Handle handle, SANE_Byte * buf, SANE_Int max_len, SANE_Int * len
         page->bytes_read += *len;
     
         /* sent it all, return eof on next read */
-        if(page->bytes_read == page->bytes_scanned){
+        if(page->bytes_read == page->bytes_scanned && s->fullscan.done){
             DBG (10, "sane_read: side done\n");
             page->done = 1;
         }
