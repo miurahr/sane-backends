@@ -1801,24 +1801,6 @@ change_params(struct scanner *s)
           s->max_y = PIX_TO_SCANNER_UNIT( settings[i].max_y, s->resolution_y );
           s->min_y = PIX_TO_SCANNER_UNIT( settings[i].min_y, s->resolution_y );
 
-          if (s->page_width > s->max_x)
-             s->page_width = s->max_x;
-          else if (s->page_width < s->min_x)
-             s->page_width = s->min_x;
-
-          s->tl_x = (s->max_x - s->page_width)/2;
-          if (s->tl_y > s->max_y - s->min_y)
-             s->tl_y = s->max_y - s->min_y;
-
-          if (s->tl_y + s->page_height > s->max_y)
-             s->page_height = s->max_y - s->tl_y;
-
-          if (s->page_height < s->min_y)
-             s->page_height = s->min_y;
-
-          s->br_x = (s->max_x + s->page_width)/2;
-          s->br_y = s->tl_y + s->page_height;
-
           /*current dpi*/
           s->setWindowCoarseCal = settings[i].sw_coarsecal;
           s->setWindowCoarseCalLen = SET_WINDOW_LEN;
@@ -1858,6 +1840,39 @@ change_params(struct scanner *s)
         img_heads = 3; /* image width is 3* the plane width on the FI-60F */
         img_pages = 1;
     }
+
+    /* height */
+    if (s->model == MODEL_S300)
+    {
+        if (s->tl_y > s->max_y - s->min_y)
+           s->tl_y = s->max_y - s->min_y - ADF_HEIGHT_PADDING;
+        if (s->tl_y + s->page_height > s->max_y - ADF_HEIGHT_PADDING)
+           s->page_height = s->max_y - ADF_HEIGHT_PADDING - s->tl_y;
+        if (s->page_height < s->min_y)
+           s->page_height = s->min_y;
+        if (s->tl_y + s->page_height > s->max_y)
+           s->tl_y = s->max_y - ADF_HEIGHT_PADDING - s->page_height ;
+    }
+    else /* (s->model == MODEL_FI60F) */
+    {
+        if (s->tl_y > s->max_y - s->min_y)
+           s->tl_y = s->max_y - s->min_y;
+        if (s->tl_y + s->page_height > s->max_y)
+           s->page_height = s->max_y - s->tl_y;
+        if (s->page_height < s->min_y)
+           s->page_height = s->min_y;
+        if (s->tl_y + s->page_height > s->max_y)
+           s->tl_y = s->max_y - s->page_height ;
+    }
+    s->br_y = s->tl_y + s->page_height;
+
+    /*width*/
+    if (s->page_width > s->max_x)
+       s->page_width = s->max_x;
+    else if (s->page_width < s->min_x)
+       s->page_width = s->min_x;
+    s->tl_x = (s->max_x - s->page_width)/2;
+    s->br_x = (s->max_x + s->page_width)/2;
     
     /* set up the transfer structs */
     s->cal_image.plane_width = settings[i].cal_headwidth;
