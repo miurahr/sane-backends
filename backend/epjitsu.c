@@ -1848,7 +1848,7 @@ change_params(struct scanner *s)
            s->tl_y = s->max_y - s->min_y - ADF_HEIGHT_PADDING;
         if (s->tl_y + s->page_height > s->max_y - ADF_HEIGHT_PADDING)
            s->page_height = s->max_y - ADF_HEIGHT_PADDING - s->tl_y;
-        if (s->page_height < s->min_y)
+        if (s->page_height < s->min_y && s->page_height > 0)
            s->page_height = s->min_y;
         if (s->tl_y + s->page_height > s->max_y)
            s->tl_y = s->max_y - ADF_HEIGHT_PADDING - s->page_height ;
@@ -1859,12 +1859,18 @@ change_params(struct scanner *s)
            s->tl_y = s->max_y - s->min_y;
         if (s->tl_y + s->page_height > s->max_y)
            s->page_height = s->max_y - s->tl_y;
-        if (s->page_height < s->min_y)
+        if (s->page_height < s->min_y && s->page_height > 0)
            s->page_height = s->min_y;
         if (s->tl_y + s->page_height > s->max_y)
            s->tl_y = s->max_y - s->page_height ;
     }
-    s->br_y = s->tl_y + s->page_height;
+    if (s->page_height > 0) {
+        s->br_y = s->tl_y + s->page_height;
+    }
+    else
+    {
+        s->br_y = s->max_y;
+    }
 
     /*width*/
     if (s->page_width > s->max_x)
