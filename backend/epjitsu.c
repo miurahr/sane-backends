@@ -1933,22 +1933,36 @@ change_params(struct scanner *s)
 
     /* fill in front settings */
     s->front.width_pix = SCANNER_UNIT_TO_PIX(s->page_width, s->resolution_x * img_heads); 
+    s->front.x_start_offset = (s->block_xfr.image->width_pix - s->front.width_pix)/2;
     switch (s->mode) {
       case MODE_COLOR:
         s->front.width_bytes = s->front.width_pix*3;
+        s->front.x_offset_bytes = s->front.start_offset *3;
         break;
       case MODE_GRAYSCALE:
         s->front.width_bytes = s->front.width_pix;
+        s->front.x_offset_bytes = s->front.start_offset;
         break;
       default: /*binary*/
         s->front.width_bytes = s->front.width_pix/8;
         s->front.width_pix = s->front.width_bytes * 8;
         s->page_width = PIX_TO_SCANNER_UNIT(s->front.width_pix, (img_heads * s->resolution_x));
+        s->front.x_offset_bytes = s->front.start_offset/8;
         break;
     }
     /*output image might be taller than scan due to interpolation*/
     s->front.height = SCANNER_UNIT_TO_PIX(s->page_height, s->resolution_x);
     /*  SCANNER_UNIT_TO_PIX(s->page_height, s->resolution_y) * (s->resolution_x / s->resolution_y) */
+
+    /* ADF front need to remove padding header */
+    if (s->source != SOURCE_FLATBED) 
+    {
+        s->front.y_skip_offset = SCANNER_UNIT_TO_PIX(s->tl_y+ADF_HEIGHT_PADDING, s->resolution_y);
+    }
+    else
+    {
+        s->front.y_skip_offset = SCANNER_UNIT_TO_PIX(s->tl_y, s->resolution_y);
+    }
 
     s->front.pages = 1;
     s->front.buffer = NULL;
@@ -1957,6 +1971,9 @@ change_params(struct scanner *s)
     s->back.width_pix = s->front.width_pix;
     s->back.width_bytes = s->front.width_bytes;
     s->back.height = s->front.height;
+    s->back.start_offset = s->front.x_start_offset;
+    s->back.x_offset_bytes = s->front.x_offset_bytes;
+    s->back.y_skip_offset = SCANNER_UNIT_TO_PIX(s->tl_y, s->resolution_y);
     s->back.pages = 1;
     s->back.buffer = NULL;
 
@@ -3818,71 +3835,44 @@ copy_block_to_page(struct scanner *s,int side)
     struct page * page = &s->pages[side];
     int image_height = block->total_bytes / block->line_stride;
     int image_width = block->image->width_pix;
-    int page_height = (s->page_height * s->resolution_x) / 1200;
+    int page_height = SCANNER_UNIT_TO_PIX(s->page_height, s->resolution_x);
     int page_width = page->image->width_pix;
     int block_page_stride = block->image->width_bytes * block->image->height;
     int page_y_offset = page->bytes_scanned / page->image->width_bytes;
     int line_reverse = (side == SIDE_BACK) || (s->model == MODEL_FI60F);
-    int image_start = (image_width - page_width)/2;
-    int image_skip_bytes;
-    int top_skip_height, top_skip_bytes;
     int i,j,k=0,l=0;
 
     DBG (10, "copy_block_to_page: start\n");
 
-    /* calcurate start position and end position */
-    if (s->mode == MODE_COLOR)
-    {
-        image_skip_bytes = block->image->width_bytes - (image_start + page_width)*3;
-    }
-    else if (s->mode == MODE_GRAYSCALE)
-    {
-        image_skip_bytes = block->image->width_bytes - (image_start + page_width);
-    }
-    else if (s->mode == MODE_LINEART)
-    {
-        image_skip_bytes = block->image->width_bytes - (image_start + page_width)/8;
-    }
-    
-    /* ADF front need to remove padding header */
-    if (s->source != SOURCE_FLATBED && side == SIDE_FRONT) 
-    {
-        top_skip_height = SCANNER_UNIT_TO_PIX(s->tl_y+ADF_HEIGHT_PADDING, s->resolution_y);
-    }
-    else
-    {
-        top_skip_height = SCANNER_UNIT_TO_PIX(s->tl_y, s->resolution_y);
-    }
-    top_skip_bytes = block->line_stride * top_skip_height;
-
-
-    if (s->fullscan.rx_bytes + s->block_xfr.rx_bytes < top_skip_bytes)
+    /* skip padding and tl_y */
+    if (s->fullscan.rx_bytes + s->block_xfr.rx_bytes < block->line_stride * page->y_skip_offset)
     {
         return ret;
     }
-    else if (s->fullscan.rx_bytes < top_skip_bytes)
+    else if (s->fullscan.rx_bytes < block->line_stride * page->y_skip_offset)
     {
-        k = top_skip_height - s->fullscan.rx_bytes / block->line_stride;
+        k = page->y_skip_offset - s->fullscan.rx_bytes / block->line_stride;
     }
 
+    /* skip trailer */
     if (s->page_height)
     {
-        if (s->fullscan.rx_bytes > top_skip_bytes + page_height * block->line_stride)
+        if (s->fullscan.rx_bytes > block->line_stride * page->y_skip_offset + page_height * block->line_stride)
         {
             return ret;
         }
         else if (s->fullscan.rx_bytes + s->block_xfr.rx_bytes 
-                 > top_skip_bytes + page_height * block->line_stride)
+                 > block->line_stride * page->y_skip_offset + page_height * block->line_stride)
         {
              l = (s->fullscan.rx_bytes + s->block_xfr.rx_bytes) / block->line_stride
-                 - page_height - top_skip_height;
+                 - page_height - page->y_skip_offset;
         }
     }
 
     /* loop over all the lines in the block */
     for (i = 0; i < image_height-k-l; i++)
     {
-        unsigned char * p_in = block->image->buffer + (side * block_page_stride) + ((i+k) * block->image->width_bytes) + image_start * 3;
+        unsigned char * p_in = block->image->buffer + (side * block_page_stride) + ((i+k) * block->image->width_bytes) + page->x_start_offset * 3;
         unsigned char * p_out = page->image->buffer + ((i + page_y_offset) * page->image->width_bytes);
         unsigned char * lineStart = p_out;
         /* reverse order for back side or FI-60F scanner */
@@ -3918,9 +3908,9 @@ copy_block_to_page(struct scanner *s,int side)
         }
 	/* skip non-transfer pixels in block image buffer */
         if (line_reverse)
-            p_in -= image_skip_bytes;
+            p_in -= page->x_offset_bytes;
         else
-            p_in += image_skip_bytes;
+            p_in += page->x_offset_bytes;
 
         /* for MODE_LINEART, binarize the gray line stored in the temp image buffer(dt) */
         /* bacause dt.width = page_width, we pass page_width */
