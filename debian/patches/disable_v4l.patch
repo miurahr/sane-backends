@@ -1,0 +1,25 @@
+From: Robert Ancell <robert.ancell@canonical.com>
+Description: Disable V4L backend.
+Bug-Ubuntu: https://launchpad.net/bugs/87312
+
+diff -urNad sane-backends-1.0.20~/backend/v4l.conf.in sane-backends-1.0.20/backend/v4l.conf.in
+--- sane-backends-1.0.20~/backend/v4l.conf.in	2006-01-06 00:27:10.000000000 +0800
++++ sane-backends-1.0.20/backend/v4l.conf.in	2010-04-14 22:23:57.486410839 +0800
+@@ -2,9 +2,11 @@
+ # In order to use the v4linux backend you have to give the device
+ # You can enable multiple lines if
+ # you really have multible v4l devices.
+-#
+-/dev/bttv0
+-/dev/video0
+-/dev/video1
+-/dev/video2
+-/dev/video3
++
++# Backends disabled, to re-enable unquote the following lines
++# See https://bugs.launchpad.net/ubuntu/+source/sane-backends/+bug/87312
++#/dev/bttv0
++#/dev/video0
++#/dev/video1
++#/dev/video2
++#/dev/video3

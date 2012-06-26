@@ -1,0 +1,32 @@
+Description: Fix potential assert in avahi backend
+ avahi_browser contains a reference to an AvahiClient, which may be 
+ avahi_client.  If it does, then freeing avahi_browser references avahi_client,
+ resulting in an assert() in Avahi's linked list macro.
+ .
+ Fix this by freeing avahi_browser before avahi_client.
+Author: Christopher James Halse Rogers <christopher.halse.rogers@canonical.com>
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/831867
+
+Index: sane-backends-1.0.22/backend/net.c
+===================================================================
+--- sane-backends-1.0.22.orig/backend/net.c	2011-09-21 13:59:20.714459585 +1000
++++ sane-backends-1.0.22/backend/net.c	2011-09-21 14:00:38.774460412 +1000
+@@ -846,15 +846,15 @@
+ 	if (error == AVAHI_ERR_DISCONNECTED)
+ 	  {
+ 	    /* Server disappeared - try to reconnect */
+-	    avahi_client_free (avahi_client);
+-	    avahi_client = NULL;
+-
+ 	    if (avahi_browser)
+ 	      {
+ 		avahi_service_browser_free (avahi_browser);
+ 		avahi_browser = NULL;
+ 	      }
+ 
++	    avahi_client_free (avahi_client);
++	    avahi_client = NULL;
++
+ 	    avahi_client = avahi_client_new (avahi_threaded_poll_get (avahi_thread), AVAHI_CLIENT_NO_FAIL, net_avahi_callback, NULL, &error);
+ 	    if (avahi_client == NULL)
+ 	      {

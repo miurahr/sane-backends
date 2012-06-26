@@ -1,0 +1,30 @@
+#!/bin/sh -e
+
+case "$1" in
+    configure)
+
+    if [ "$(uname -s)" = "Linux" ]; then
+	if [ -e /dev/MAKEDEV ]; then
+	    # create /dev/parport*
+	    if [ ! -c /dev/parport0 ]; then
+		(cd /dev && ./MAKEDEV parport) || true 
+	    fi
+	    # create /dev/sg*
+	    if [ ! -c /dev/sg0 ]; then
+		(cd /dev && ./MAKEDEV sg) || true 
+	    fi
+	fi
+    fi
+    ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+    ;;
+
+    *)
+    echo "$0 called with unknown argument '$1'" >&2
+    exit 1
+    ;;
+esac
+
+
+#DEBHELPER#

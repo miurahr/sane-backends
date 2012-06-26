@@ -1,0 +1,19 @@
+Template: sane-utils/saned_run
+Type: boolean
+Default: false
+_Description: Enable saned as a standalone server?
+ The saned server, when enabled, makes scanners available over the network.
+ .
+ There are two ways of running saned:
+  - as an inetd service, started by the inetd superserver. In this mode,
+ saned is started on demand when a client connects to the server;
+  - as a standalone daemon, started at system boot. In this mode, saned
+ runs in the background all by itself and listens for client connections.
+ .
+ When run in standalone mode, saned advertises itself on the network and
+ can be detected automatically by the SANE clients with no configuration
+ on the client side. You still need to configure the server to accept
+ connections from your clients. This feature is experimental and requires
+ a running Avahi daemon.
+ .
+ Accept this option if you want to make use of this feature.
