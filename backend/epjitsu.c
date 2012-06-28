@@ -1937,17 +1937,17 @@ change_params(struct scanner *s)
     switch (s->mode) {
       case MODE_COLOR:
         s->front.width_bytes = s->front.width_pix*3;
-        s->front.x_offset_bytes = s->front.start_offset *3;
+        s->front.x_offset_bytes = s->front.x_start_offset *3;
         break;
       case MODE_GRAYSCALE:
         s->front.width_bytes = s->front.width_pix;
-        s->front.x_offset_bytes = s->front.start_offset;
+        s->front.x_offset_bytes = s->front.x_start_offset;
         break;
       default: /*binary*/
         s->front.width_bytes = s->front.width_pix/8;
         s->front.width_pix = s->front.width_bytes * 8;
         s->page_width = PIX_TO_SCANNER_UNIT(s->front.width_pix, (img_heads * s->resolution_x));
-        s->front.x_offset_bytes = s->front.start_offset/8;
+        s->front.x_offset_bytes = s->front.x_start_offset/8;
         break;
     }
     /*output image might be taller than scan due to interpolation*/
@@ -1971,7 +1971,7 @@ change_params(struct scanner *s)
     s->back.width_pix = s->front.width_pix;
     s->back.width_bytes = s->front.width_bytes;
     s->back.height = s->front.height;
-    s->back.start_offset = s->front.x_start_offset;
+    s->back.x_start_offset = s->front.x_start_offset;
     s->back.x_offset_bytes = s->front.x_offset_bytes;
     s->back.y_skip_offset = SCANNER_UNIT_TO_PIX(s->tl_y, s->resolution_y);
     s->back.pages = 1;
@@ -3845,34 +3845,34 @@ copy_block_to_page(struct scanner *s,int side)
     DBG (10, "copy_block_to_page: start\n");
 
     /* skip padding and tl_y */
-    if (s->fullscan.rx_bytes + s->block_xfr.rx_bytes < block->line_stride * page->y_skip_offset)
+    if (s->fullscan.rx_bytes + s->block_xfr.rx_bytes < block->line_stride * page->image->y_skip_offset)
     {
         return ret;
     }
-    else if (s->fullscan.rx_bytes < block->line_stride * page->y_skip_offset)
+    else if (s->fullscan.rx_bytes < block->line_stride * page->image->y_skip_offset)
     {
-        k = page->y_skip_offset - s->fullscan.rx_bytes / block->line_stride;
+        k = page->image->y_skip_offset - s->fullscan.rx_bytes / block->line_stride;
     }
 
     /* skip trailer */
     if (s->page_height)
     {
-        if (s->fullscan.rx_bytes > block->line_stride * page->y_skip_offset + page_height * block->line_stride)
+        if (s->fullscan.rx_bytes > block->line_stride * page->image->y_skip_offset + page_height * block->line_stride)
         {
             return ret;
         }
         else if (s->fullscan.rx_bytes + s->block_xfr.rx_bytes 
-                 > block->line_stride * page->y_skip_offset + page_height * block->line_stride)
+                 > block->line_stride * page->image->y_skip_offset + page_height * block->line_stride)
         {
              l = (s->fullscan.rx_bytes + s->block_xfr.rx_bytes) / block->line_stride
-                 - page_height - page->y_skip_offset;
+                 - page_height - page->image->y_skip_offset;
         }
     }
 
     /* loop over all the lines in the block */
     for (i = 0; i < image_height-k-l; i++)
     {
-        unsigned char * p_in = block->image->buffer + (side * block_page_stride) + ((i+k) * block->image->width_bytes) + page->x_start_offset * 3;
+        unsigned char * p_in = block->image->buffer + (side * block_page_stride) + ((i+k) * block->image->width_bytes) + page->image->x_start_offset * 3;
         unsigned char * p_out = page->image->buffer + ((i + page_y_offset) * page->image->width_bytes);
         unsigned char * lineStart = p_out;
         /* reverse order for back side or FI-60F scanner */
@@ -3908,9 +3908,9 @@ copy_block_to_page(struct scanner *s,int side)
         }
 	/* skip non-transfer pixels in block image buffer */
         if (line_reverse)
-            p_in -= page->x_offset_bytes;
+            p_in -= page->image->x_offset_bytes;
         else
-            p_in += page->x_offset_bytes;
+            p_in += page->image->x_offset_bytes;
 
         /* for MODE_LINEART, binarize the gray line stored in the temp image buffer(dt) */
         /* bacause dt.width = page_width, we pass page_width */
