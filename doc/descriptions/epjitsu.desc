@@ -43,8 +43,8 @@
 :model "ScanSnap S1100"
 :interface "USB"
 :status :untested
-;:usbid "0x04c5" "0x11ed"
-:comment "Testers needed!"
+:usbid "0x04c5" "0x1200"
+:comment "Test needed."
 
 :model "ScanSnap S1300"
 :interface "USB"
