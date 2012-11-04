@@ -25,7 +25,15 @@ Author: Julien BLACHE <jblache@debian.org>
  STRICT_LDFLAGS
  INCLUDES
  CROSS_COMPILING_FALSE
-@@ -798,7 +797,6 @@
+@@ -702,6 +701,7 @@
+ am__fastdepCC_FALSE
+ am__fastdepCC_TRUE
+ CCDEPMODE
++am__nodep
+ AMDEPBACKSLASH
+ AMDEP_FALSE
+ AMDEP_TRUE
+@@ -798,7 +798,6 @@
  with_docdir
  enable_dependency_tracking
  enable_warnings
@@ -33,7 +41,7 @@ Author: Julien BLACHE <jblache@debian.org>
  enable_dynamic
  enable_pthread
  enable_locking
-@@ -1471,7 +1469,6 @@
+@@ -1471,7 +1470,6 @@
    --disable-dependency-tracking  speeds up one-time build
    --enable-dependency-tracking   do not reject slow dependency extractors
    --enable-warnings       turn on tons of compiler warnings (GCC only)
@@ -41,15 +49,57 @@ Author: Julien BLACHE <jblache@debian.org>
    --disable-dynamic       Disable dynamic loading of backends
    --enable-pthread        use pthread instead of fork (default=yes for MacOS
                            X/MINGW, no for everything else)
-@@ -4971,6 +4968,7 @@
+@@ -1510,7 +1508,7 @@
+   --with-group            use the specified group for lock dir [default=uucp]
+   --with-gphoto2          include the gphoto2 backend [default=yes]
+   --with-snmp             enable SNMP support [default=yes]
+-  --with-pic              try to use only PIC/non-PIC objects [default=use
++  --with-pic[=PKGS]       try to use only PIC/non-PIC objects [default=use
+                           both]
+   --with-gnu-ld           assume the C compiler uses GNU ld [default=no]
+   --with-sysroot=DIR Search for dependent libraries within DIR
+@@ -3067,11 +3065,11 @@
+ 
+ # We need awk for the "check" target.  The system "awk" is bad on
+ # some platforms.
+-# Always define AMTAR for backward compatibility.
++# Always define AMTAR for backward compatibility.  Yes, it's still used
++# in the wild :-(  We should find a proper way to deprecate it ...
++AMTAR='$${TAR-tar}'
+ 
+-AMTAR=${AMTAR-"${am_missing_run}tar"}
+-
+-am__tar='${AMTAR} chof - "$$tardir"'; am__untar='${AMTAR} xf -'
++am__tar='$${TAR-tar} chof - "$$tardir"' am__untar='$${TAR-tar} xf -'
  
  
  
-+
- if test "x$ac_cv_env_PKG_CONFIG_set" != "xset"; then
- 	if test -n "$ac_tool_prefix"; then
-   # Extract the first word of "${ac_tool_prefix}pkg-config", so it can be a program name with args.
-@@ -5204,44 +5202,6 @@
+@@ -4064,6 +4062,7 @@
+ if test "x$enable_dependency_tracking" != xno; then
+   am_depcomp="$ac_aux_dir/depcomp"
+   AMDEPBACKSLASH='\'
++  am__nodep='_no'
+ fi
+  if test "x$enable_dependency_tracking" != xno; then
+   AMDEP_TRUE=
+@@ -4088,6 +4087,7 @@
+   # instance it was reported that on HP-UX the gcc test will end up
+   # making a dummy file named `D' -- because `-MD' means `put the output
+   # in D'.
++  rm -rf conftest.dir
+   mkdir conftest.dir
+   # Copy depcomp to subdir because otherwise we won't find it if we're
+   # using a relative directory.
+@@ -4147,7 +4147,7 @@
+ 	break
+       fi
+       ;;
+-    msvisualcpp | msvcmsys)
++    msvc7 | msvc7msys | msvisualcpp | msvcmsys)
+       # This compiler won't grok `-c -o', but also, the minuso test has
+       # not run yet.  These depmodes are late enough in the game, and
+       # so weak that their functioning should not be impacted.
+@@ -5205,44 +5205,6 @@
        ;;
    esac
  
@@ -94,87 +144,38 @@ Author: Julien BLACHE <jblache@debian.org>
  
  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ANSI C header files" >&5
  $as_echo_n "checking for ANSI C header files... " >&6; }
-@@ -7579,6 +7539,7 @@
-   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-   test $ac_status = 0; }; then
-   pkg_cv_LIBV4L_CFLAGS=`$PKG_CONFIG --cflags "libv4l1" 2>/dev/null`
-+		      test "x$?" != "x0" && pkg_failed=yes
+@@ -10618,8 +10580,8 @@
+ 
+ 
+ 
+-macro_version='2.4'
+-macro_revision='1.3293'
++macro_version='2.4.2'
++macro_revision='1.3337'
+ 
+ 
+ 
+@@ -13727,7 +13689,22 @@
+ 
+ # Check whether --with-pic was given.
+ if test "${with_pic+set}" = set; then :
+-  withval=$with_pic; pic_mode="$withval"
++  withval=$with_pic; lt_p=${PACKAGE-default}
++    case $withval in
++    yes|no) pic_mode=$withval ;;
++    *)
++      pic_mode=default
++      # Look at the argument we got.  We use all the common list separators.
++      lt_save_ifs="$IFS"; IFS="${IFS}$PATH_SEPARATOR,"
++      for lt_pkg in $withval; do
++	IFS="$lt_save_ifs"
++	if test "X$lt_pkg" = "X$lt_p"; then
++	  pic_mode=yes
++	fi
++      done
++      IFS="$lt_save_ifs"
++      ;;
++    esac
  else
-   pkg_failed=yes
+   pic_mode=default
  fi
-@@ -7595,6 +7556,7 @@
-   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-   test $ac_status = 0; }; then
-   pkg_cv_LIBV4L_LIBS=`$PKG_CONFIG --libs "libv4l1" 2>/dev/null`
-+		      test "x$?" != "x0" && pkg_failed=yes
- else
-   pkg_failed=yes
- fi
-@@ -7614,9 +7576,9 @@
-         _pkg_short_errors_supported=no
- fi
-         if test $_pkg_short_errors_supported = yes; then
--	        LIBV4L_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors "libv4l1" 2>&1`
-+	        LIBV4L_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libv4l1" 2>&1`
-         else
--	        LIBV4L_PKG_ERRORS=`$PKG_CONFIG --print-errors "libv4l1" 2>&1`
-+	        LIBV4L_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libv4l1" 2>&1`
-         fi
- 	# Put the nasty error message in config.log where it belongs
- 	echo "$LIBV4L_PKG_ERRORS" >&5
-@@ -7660,6 +7622,7 @@
-   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-   test $ac_status = 0; }; then
-   pkg_cv_AVAHI_CFLAGS=`$PKG_CONFIG --cflags " avahi-client >= 0.6.24 " 2>/dev/null`
-+		      test "x$?" != "x0" && pkg_failed=yes
- else
-   pkg_failed=yes
- fi
-@@ -7676,6 +7639,7 @@
-   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-   test $ac_status = 0; }; then
-   pkg_cv_AVAHI_LIBS=`$PKG_CONFIG --libs " avahi-client >= 0.6.24 " 2>/dev/null`
-+		      test "x$?" != "x0" && pkg_failed=yes
- else
-   pkg_failed=yes
- fi
-@@ -7695,9 +7659,9 @@
-         _pkg_short_errors_supported=no
- fi
-         if test $_pkg_short_errors_supported = yes; then
--	        AVAHI_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors " avahi-client >= 0.6.24 " 2>&1`
-+	        AVAHI_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs " avahi-client >= 0.6.24 " 2>&1`
-         else
--	        AVAHI_PKG_ERRORS=`$PKG_CONFIG --print-errors " avahi-client >= 0.6.24 " 2>&1`
-+	        AVAHI_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs " avahi-client >= 0.6.24 " 2>&1`
-         fi
- 	# Put the nasty error message in config.log where it belongs
- 	echo "$AVAHI_PKG_ERRORS" >&5
-@@ -9645,6 +9609,7 @@
-   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-   test $ac_status = 0; }; then
-   pkg_cv_LIBUSB_1_0_CFLAGS=`$PKG_CONFIG --cflags " libusb-1.0 >= 1.0.0 " 2>/dev/null`
-+		      test "x$?" != "x0" && pkg_failed=yes
- else
-   pkg_failed=yes
- fi
-@@ -9661,6 +9626,7 @@
-   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-   test $ac_status = 0; }; then
-   pkg_cv_LIBUSB_1_0_LIBS=`$PKG_CONFIG --libs " libusb-1.0 >= 1.0.0 " 2>/dev/null`
-+		      test "x$?" != "x0" && pkg_failed=yes
- else
-   pkg_failed=yes
- fi
-@@ -9680,9 +9646,9 @@
-         _pkg_short_errors_supported=no
- fi
-         if test $_pkg_short_errors_supported = yes; then
--	        LIBUSB_1_0_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors " libusb-1.0 >= 1.0.0 " 2>&1`
-+	        LIBUSB_1_0_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs " libusb-1.0 >= 1.0.0 " 2>&1`
-         else
--	        LIBUSB_1_0_PKG_ERRORS=`$PKG_CONFIG --print-errors " libusb-1.0 >= 1.0.0 " 2>&1`
-+	        LIBUSB_1_0_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs " libusb-1.0 >= 1.0.0 " 2>&1`
-         fi
- 	# Put the nasty error message in config.log where it belongs
- 	echo "$LIBUSB_1_0_PKG_ERRORS" >&5
