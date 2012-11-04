@@ -1,3 +1,9 @@
+sane-backends (1.0.24-git20121103) precise; urgency=low
+
+  * update base
+
+ -- Hiroshi Miura <miurahr@linux.com>  Sun, 04 Nov 2012 15:35:24 +0900
+
 sane-backends (1.0.23-git20120627) oneiric; urgency=low
 
   * test for canon lide90 and epjitsu 

@@ -1,3 +1,4 @@
+libtool-update.patch
 frontends_libs.patch
 disable_rpath.patch
 sane-config_and_pkg-config_fixes.patch
